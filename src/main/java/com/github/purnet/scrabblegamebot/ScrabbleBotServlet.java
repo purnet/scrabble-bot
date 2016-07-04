@@ -25,7 +25,7 @@ import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 
 @SuppressWarnings("serial")
 public class ScrabbleBotServlet extends HttpServlet {
-
+    private static final String persistenceLayerUrl = "http://localhost:8080/gamedataaccesslayer";
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp)
 			throws ServletException, IOException {
@@ -132,10 +132,13 @@ public class ScrabbleBotServlet extends HttpServlet {
 		JSONRPC2Response resp = null;
 		switch (req.getMethod()) {
 	        case "Scrabble.NewGame":  
-	        	 resp = createGame(req);
-	             break;
+	        	resp = createGame(req);
+	            break;
+	        case "Scrabble.NextMove":
+	        	resp = createMove(req);
+	        	break;
 	        default: 
-                 break;
+                break;
 		}
 		
 		return resp;
@@ -177,10 +180,26 @@ public class ScrabbleBotServlet extends HttpServlet {
 		body.put("query", "mutation insertGame ($merkneraGameId: Int!, $status: String, $players: [PlayerInput], $assets: [AssetInput]) {game: createGame(merkneraGameId: $merkneraGameId, status: $status, playerInput: $players, assetInput: $assets) { merkneraGameId,  status,  players {playerName, playerNumber }, assets {assetUrl, assetCode, assetName}} }");
 		body.put("variables", variables.toString());
 		
-		String url = "http://localhost:8080/gamedataaccesslayer";
-		Response r = makeHTTPRequest(url, body.toString(), "POST");
+		Response r = makeHTTPRequest(persistenceLayerUrl, body.toString(), "POST");
 		Map<String, Object> respMap = new HashMap<String, Object>(); 
-		respMap.put("position", 6);
+		//TODO check if assets are downloaded and if not respond with preparing
+		//     kick off an async task to download them and send a ready status once done
+		respMap.put("status", "READY");
+		JSONRPC2Response resp = new JSONRPC2Response(respMap, req.getID());
+		return resp;
+	}
+	
+	private JSONRPC2Response createMove(JSONRPC2Request req) {
+		Map<String,Object> params = req.getNamedParams();
+		JSONObject body = new JSONObject();
+		JSONObject variables = new JSONObject();
+		variables.put("merkneraGameId", params.get("gameid"));
+		variables.put("tiles", params.get("tiles"));
+		variables.put("state", params.get("gamestate"));
+		body.put("query", "mutation insertMove ($merkneraGameId: Int!, $state: String!, $tiles: String!){ game: createMove(merkneraGameId : $merkneraGameId, gameState : $state, tiles: $tiles\n  ) {id, gameState, tiles  }}");
+		body.put("variables", variables.toString());
+		Response r = makeHTTPRequest(persistenceLayerUrl, body.toString(), "POST");
+		Map<String, Object> respMap = new HashMap<String, Object>();
 		JSONRPC2Response resp = new JSONRPC2Response(respMap, req.getID());
 		return resp;
 	}
