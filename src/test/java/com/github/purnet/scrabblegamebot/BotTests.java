@@ -70,7 +70,7 @@ public class BotTests extends TestCase {
 					"[\"\", \"\", \"\", \"\", \"T\",\"\", \"\", \"\", \"E\", \"\", \"\"]," +
 					"[\"\", \"\", \"\", \"\", \"E\",\"\", \"\", \"\", \"\", \"\", \"\"]" +
 				"]," +
-			" \"tiles\": [\"A\", \"T\", \"O\", \"R\", \"E\", \"S\", \"R\"] " +
+			" \"tiles\": [\"A\", \"T\", \"O\", \"R\", \"E\", \"S\", \"T\"] " +
 	     "}";
 
 		sb.getBot().setGameState(state);
@@ -78,7 +78,7 @@ public class BotTests extends TestCase {
 		// Populate board with anchors and cross checks
 		sb.getBot().setGameBoard();
 
-		Square s = sb.getBot().getGameBoard().get(10).get(3);
+		
 		
 		for (int i =0; i < sb.getBot().getGameBoard().size(); i++){
 			for (int j=0;j <11; j++){
@@ -87,10 +87,17 @@ public class BotTests extends TestCase {
 			}
 			System.out.println(" ");
 		}
-if (s.letter == "") {
-			System.out.println("space");
-		} else {System.out.println('$'+ s.letter + '$');}
-		sb.getBot().extendRight("", sb.getBot().getNodes().get(0), s);
+
+		Square s = sb.getBot().getGameBoard().get(10).get(3);
+		int limit = 0;
+		for(int i = s.col -1; i >= 0; i--){
+			if (sb.getBot().getGameBoard().get(s.row).get(i).anchor){
+				break;
+			}
+			limit++;
+		}
+		sb.getBot().extendLeft("", sb.getBot().getNodes().get(0), limit, s);
+		//sb.getBot().extendRight("", sb.getBot().getNodes().get(0), s, s);
 
 	}
 	
