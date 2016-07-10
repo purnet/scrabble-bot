@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
@@ -18,6 +19,9 @@ import javax.servlet.http.HttpServletResponse;
 
 import net.minidev.json.JSONObject;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2ParseException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
@@ -25,7 +29,23 @@ import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 
 @SuppressWarnings("serial")
 public class ScrabbleBotServlet extends HttpServlet {
+	
     private static final String persistenceLayerUrl = "http://localhost:8080/gamedataaccesslayer";
+    private ScrabbleBot bot;
+	
+	@Override
+	public void init() throws ServletException {
+		// TODO Auto-generated method stub
+		bot = new ScrabbleBot();
+		// TODO Registration and move populate dict to this place with correct url
+		this.populateDictionary("","http://localhost:8000/sowpods.txt");
+		super.init();
+	}
+	
+	public ScrabbleBot getBot() {
+		return bot;
+	}
+
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp)
 			throws ServletException, IOException {
@@ -75,6 +95,23 @@ public class ScrabbleBotServlet extends HttpServlet {
         resp.getWriter().close();
 	}
 	
+	private void populateDictionary(String dictionaryHash, String dictionaryUrl){
+		Response r = makeHTTPRequest(dictionaryUrl, null, "GET");
+		BufferedReader bufReader = new BufferedReader(new StringReader(r.getBody()));
+		String line=null;
+		ArrayList<String> temp = this.bot.getDictionary();
+		try {
+			while( (line=bufReader.readLine()) != null )
+			{
+				temp.add(line);
+			}
+			this.bot.setDictionary(temp);
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+	}
+
 	private static Response makeHTTPRequest(String targetURL, String body, String reqType) {
 		  HttpURLConnection connection = null;  
 		  try {
@@ -193,9 +230,28 @@ public class ScrabbleBotServlet extends HttpServlet {
 		Map<String,Object> params = req.getNamedParams();
 		JSONObject body = new JSONObject();
 		JSONObject variables = new JSONObject();
+		JSONObject gameStateJSON = new JSONObject();
+		gameStateJSON.put("gamestate", params.get("gamestate"));
+				
+		ObjectMapper mapper = new ObjectMapper();
+		GameState gs = new GameState();
+		try {
+			gs = mapper.readValue(gameStateJSON.toJSONString(), GameState.class);
+		} catch (JsonParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JsonMappingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 		variables.put("merkneraGameId", params.get("gameid"));
 		variables.put("tiles", params.get("tiles"));
 		variables.put("state", params.get("gamestate"));
+
 		body.put("query", "mutation insertMove ($merkneraGameId: Int!, $state: String!, $tiles: String!){ game: createMove(merkneraGameId : $merkneraGameId, gameState : $state, tiles: $tiles\n  ) {id, gameState, tiles  }}");
 		body.put("variables", variables.toString());
 		Response r = makeHTTPRequest(persistenceLayerUrl, body.toString(), "POST");
