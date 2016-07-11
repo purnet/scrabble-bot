@@ -167,39 +167,48 @@ public class ScrabbleBot {
 		}
 	}
 	
-	public void scoreWord(String word){
-		System.out.println(word);
+	public void scoreWord(String word, Square start){
+		StringBuilder positions = new StringBuilder();
+		int pos = start.col;
+		for (char l : word.toCharArray()){
+			positions.append(String.valueOf(pos) + ",");
+			pos++;
+		}
+		positions.deleteCharAt(positions.lastIndexOf(","));
+		System.out.println(word + " positions {"+ positions+"}");
 	}
 	
-	public void extendLeft(String partialWord, LexiconNode node, int limit, Square square){
-		System.out.println("GOING RIGHT(" +partialWord + ", "+node.letter+", "+String.valueOf(square.col));
-		extendRight(partialWord, node, square, square);
-		if (limit > 0 && (square.col -1) > 0){
-			Square s = gameBoard.get(square.row).get(square.col -1);
+	public void extendLeft(String partialWord, LexiconNode node, int limit, Square origin, Square anchor){
+		System.out.println("------------------------------------------------------");
+		System.out.println("GOING RIGHT(" +partialWord + ", "+node.letter+", "+String.valueOf(origin.col));
+		System.out.println("------------------------------------------------------");
+		extendRight(partialWord, node, anchor, origin, anchor);
+		if (limit > 0 && (origin.col -1) > 0){
+			Square s = gameBoard.get(origin.row).get(origin.col -1);
 			for (int e : node.edges){
 				LexiconNode nextNode = nodes.get(e);
 				// TODO add crosschecks for column letters
 				if (tiles.contains(nextNode.letter)){
 					tiles.remove(nextNode.letter);
-					extendLeft(partialWord + nextNode.letter, nextNode, limit -1, s);
+					extendLeft(partialWord + nextNode.letter, nextNode, limit -1, s, anchor);
 					tiles.add(nextNode.letter);
 				}
 			}
 		}
 	}
 	
-	public void extendRight(String partialWord, LexiconNode node, Square square, Square origin){
+	public void extendRight(String partialWord, LexiconNode node, Square square, Square origin, Square anchor){
 		if (square.letter == "") {
 			for (int e : node.edges){				
 				LexiconNode nextNode = nodes.get(e);
 				//TODO the below check needs to do cross checks also
 				if (tiles.contains(nextNode.letter)){
-					if (nextNode.terminal) {
-						scoreWord(partialWord + nextNode.letter);
+					if (nextNode.terminal && (partialWord + nextNode.letter).length() > (anchor.col - origin.col + 1) ) {
+						scoreWord(partialWord + nextNode.letter, origin);
 					}
 					tiles.remove(nextNode.letter);
 					if ((square.col + 1) <= colLimit) {
-						extendRight(partialWord + nextNode.letter, nextNode, gameBoard.get(square.row).get(square.col + 1), origin);
+						extendRight(partialWord + nextNode.letter, nextNode, gameBoard.get(square.row).get(square.col + 1), origin, anchor);
 					}
 					tiles.add(nextNode.letter);
 				}	
@@ -209,11 +218,11 @@ public class ScrabbleBot {
 			for (int e : node.edges){
 				LexiconNode nextNode = nodes.get(e);
 				if (letter.equals(nextNode.letter)){
-					if (nextNode.terminal) {
-						scoreWord(partialWord + nextNode.letter);
+					if (nextNode.terminal && (partialWord + nextNode.letter).length() >= (anchor.col - origin.col)) {
+						scoreWord(partialWord + nextNode.letter, origin);
 					}
 					if ((square.col + 1) <= colLimit){
-						extendRight(partialWord + letter, nextNode, gameBoard.get(square.row).get(square.col + 1), origin);
+						extendRight(partialWord + letter, nextNode, gameBoard.get(square.row).get(square.col + 1), origin, anchor);
 					}
 				}
 			}

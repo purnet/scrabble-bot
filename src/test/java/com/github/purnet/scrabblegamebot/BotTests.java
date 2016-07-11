@@ -96,7 +96,7 @@ public class BotTests extends TestCase {
 			}
 			limit++;
 		}
-		sb.getBot().extendLeft("", sb.getBot().getNodes().get(0), limit, s);
+		sb.getBot().extendLeft("", sb.getBot().getNodes().get(0), limit, s, s);
 		//sb.getBot().extendRight("", sb.getBot().getNodes().get(0), s, s);
 
 	}
