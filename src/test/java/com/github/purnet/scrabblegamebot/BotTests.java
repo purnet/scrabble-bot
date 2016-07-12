@@ -97,26 +97,27 @@ public class BotTests extends TestCase {
 //	        it.remove(); // avoids a ConcurrentModificationException
 //	    }
 		//sb.getBot().makeBestMove();
+		sb.getBot().scoreWord("ECAD", sb.getBot().getGameBoard().get(2).get(3));
 		
-		Square s = sb.getBot().getGameBoard().get(3).get(2);
-
-		int limit = 0;
-		StringBuilder builder = new StringBuilder();
-		for(int i = s.col -1; i >= 0; i--){
-			Square prev = sb.getBot().getGameBoard().get(s.row).get(i);
-			if (prev.anchor){
-				break;
-			}
-			if (prev.letter != ""){
-				builder.append(prev.letter);
-			} else {
-				limit++;
-			}
-		}
+//		Square s = sb.getBot().getGameBoard().get(10).get(3);
+//
+//		int limit = 0;
+//		StringBuilder builder = new StringBuilder();
+//		for(int i = s.col -1; i >= 0; i--){
+//			Square prev = sb.getBot().getGameBoard().get(s.row).get(i);
+//			if (prev.anchor){
+//				break;
+//			}
+//			if (prev.letter != ""){
+//				builder.append(prev.letter);
+//			} else {
+//				limit++;
+//			}
+//		}
 //		System.out.println(sb.getBot().getNodes().get(0).edges);
 //		System.out.println(sb.getBot().getNodes().get(36072).letter);
 		
-		sb.getBot().extendLeft(builder.toString(), sb.getBot().getNodes().get(0), limit, s, s);
+//		sb.getBot().extendLeft(builder.toString(), sb.getBot().getNodes().get(0), limit, s, s);
 //		//Set<String> crossChecks = sb.getBot().getCrossChecks(s);
 //		//System.out.println(crossChecks);
 //		sb.getBot().extendLeft(builder.toString(), sb.getBot().getNodes().get(0), limit, s, s);

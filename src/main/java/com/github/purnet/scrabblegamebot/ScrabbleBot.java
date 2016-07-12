@@ -302,14 +302,20 @@ public class ScrabbleBot {
 		for (char l : word.toCharArray()) { 
 			positions.append(String.valueOf(pos) + ","); // TODO delete this
 			pos++; // TODO delete this
-			if (s.letter != "") {
+			if (s.letter == "") {
+				System.out.println("Scoring letter: " + String.valueOf(l));
 				multipliers.add(s.wordScore);
+				System.out.println("AcrossTotal:" + String.valueOf(acrossTotal));
+				System.out.println(" letter point: "+ String.valueOf(letterPoints.get(String.valueOf(l))) + " letterScore" + String.valueOf(s.letterScore));
+				System.out.println("AcrossTotal:" + String.valueOf(acrossTotal));
 				acrossTotal += (letterPoints.get(String.valueOf(l)) * s.letterScore);
 				int downTotal = 0;
 				// look upwards
 				for (int i = s.row -1; i >= 0; i--){
 					Square squareUp = gameBoard.get(i).get(s.col);
+					
 					if (squareUp.letter != ""){
+						System.out.println("got here: " + squareUp.letter);
 						downTotal += letterPoints.get(squareUp.letter);
 					} else {
 						break;
@@ -319,6 +325,7 @@ public class ScrabbleBot {
 				for (int i = s.row +1; i <= rowLimit; i++){
 					Square squareDown = gameBoard.get(i).get(s.col);
 					if (squareDown.letter != ""){
+						System.out.println("got here: " + squareDown.letter);
 						downTotal += letterPoints.get(squareDown.letter);
 					} else {
 						break;
@@ -378,7 +385,9 @@ public class ScrabbleBot {
 			for (int e : node.edges){
 				LexiconNode nextNode = nodes.get(e);
 				if (letter.equals(nextNode.letter)){
-					if (nextNode.terminal && (partialWord + nextNode.letter).length() >= (anchor.col - origin.col)) {
+					if (nextNode.terminal && 
+							(partialWord + nextNode.letter).length() >= (anchor.col - origin.col) &&
+							(square.col == colLimit || gameBoard.get(square.row).get(square.col + 1).letter == "")) {
 						scoreWord(partialWord + nextNode.letter, origin);
 					}
 					if ((square.col + 1) <= colLimit){
