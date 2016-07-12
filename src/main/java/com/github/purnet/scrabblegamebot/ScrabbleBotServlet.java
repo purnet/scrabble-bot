@@ -37,8 +37,16 @@ public class ScrabbleBotServlet extends HttpServlet {
 	public void init() throws ServletException {
 		// TODO Auto-generated method stub
 		bot = new ScrabbleBot();
-		// TODO Registration and move populate dict to this place with correct url
+		// TODO Registration and move populate dict to this rpc call with correct url
 		this.populateDictionary("","http://localhost:8000/sowpods.txt");
+		try {
+			this.populateGameAsset("", "http://localhost:8000/board_standard.json", "gameboard");
+			this.populateGameAsset("", "http://localhost:8000/letters_standard.json", "letters");
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			throw new ServletException("Error in initialising servlet");
+		}
 		super.init();
 	}
 	
@@ -95,8 +103,9 @@ public class ScrabbleBotServlet extends HttpServlet {
         resp.getWriter().close();
 	}
 	
-	private void populateDictionary(String dictionaryHash, String dictionaryUrl){
-		Response r = makeHTTPRequest(dictionaryUrl, null, "GET");
+	private void populateDictionary(String hash, String url){
+		//TODO check if hash in our db if so get the file from there else download it from url and store it
+		Response r = makeHTTPRequest(url, null, "GET");
 		BufferedReader bufReader = new BufferedReader(new StringReader(r.getBody()));
 		String line=null;
 		ArrayList<String> temp = this.bot.getDictionary();
@@ -106,6 +115,33 @@ public class ScrabbleBotServlet extends HttpServlet {
 				temp.add(line);
 			}
 			this.bot.setDictionary(temp);
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+	}
+	
+	private void populateGameAsset(String hash, String url, String assetName) throws Exception{
+		//TODO check if hash in our db if so get the file from there else download it from url and store it
+		Response r = makeHTTPRequest(url, null, "GET");
+		BufferedReader bufReader = new BufferedReader(new StringReader(r.getBody()));
+		String line=null;
+		StringBuilder jsonValue = new StringBuilder();
+		String objectJSON = null;
+		try {
+			while( (line=bufReader.readLine()) != null )
+			{
+				jsonValue.append(line);
+			}
+			if (assetName.equals("gameboard")) {
+				objectJSON = "{ \"standardBoard\" : " + jsonValue.toString() + " }";
+				this.bot.setStandardBoard(objectJSON);
+			} else if (assetName.equals("letters")) {
+				objectJSON = jsonValue.toString();
+				this.bot.setLetterPoints(objectJSON);
+			} else {
+				throw new Exception("assetName is not a valid value of gameboard or letters");
+			}
 		} catch (IOException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
