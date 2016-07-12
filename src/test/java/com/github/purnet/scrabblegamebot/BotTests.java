@@ -2,6 +2,7 @@ package com.github.purnet.scrabblegamebot;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.Stack;
 
 import javax.servlet.ServletException;
@@ -61,16 +62,16 @@ public class BotTests extends TestCase {
 					"[\"\", \"\", \"\", \"\",\"\", \"\", \"\", \"\", \"\", \"\", \"\"]," +
 					"[\"\", \"\", \"\", \"\",\"\", \"\", \"\", \"\", \" \", \" \", \"\"]," +
 					"[\"\", \"\", \"\", \"\", \" C \", \"\", \"\", \"\", \"\",\"\", \"\"]," +
-					"[\"\", \"\", \"\", \"P\", \"A\", \"S\", \"T\", \"A\", \"\", \"\", \"\"]," +
+					"[\"\", \"\", \"\", \"P\", \"A\", \"S\", \"T\", \"B\", \"\", \"\", \"\"]," +
 					"[\"\", \"\", \"\", \"\", \"L\", \"\", \"\", \"\", \"\", \"\", \"\"]," +
-					"[\"\", \"\", \"\", \"\", \"C\", \"O\", \"O\", \"C\", \"H\", \"\", \"\"]," +
-					"[\"\", \"\", \"\", \"\", \"U\",\"\", \"\", \"\", \"O\", \"\", \"\"]," +
-					"[\"\", \"\", \"\", \"\", \"L\",\"\", \"\", \"\", \"U\", \"\", \"\"]," +
-					"[\"\", \"\", \"\", \"\", \"A\",\"\", \"\", \"\", \"S\", \"O\", \"D\"]," +
-					"[\"\", \"\", \"\", \"\", \"T\",\"\", \"\", \"\", \"E\", \"\", \"\"]," +
+					"[\"\", \"\", \"\", \"\", \"C\", \"L\", \"O\", \"T\", \"H\", \"\", \"\"]," +
+					"[\"\", \"\", \"\", \"\", \"U\",\"\", \"\", \"H\", \"E\", \"\", \"\"]," +
+					"[\"\", \"\", \"\", \"\", \"L\",\"\", \"\", \"E\", \"A\", \"\", \"\"]," +
+					"[\"\", \"\", \"\", \"\", \"A\",\"\", \"\", \"\", \"R\", \"O\", \"D\"]," +
+					"[\"\", \"\", \"\", \"\", \"T\",\"\", \"\", \"\", \"T\", \"\", \"\"]," +
 					"[\"\", \"\", \"\", \"\", \"E\",\"\", \"\", \"\", \"\", \"\", \"\"]" +
 				"]," +
-			" \"tiles\": [\"A\", \"T\", \"O\", \"R\", \"E\", \"S\", \"T\"] " +
+			" \"tiles\": [\"A\", \" T\", \" F \", \"R\", \"E\", \"S\", \"D\"] " +
 	     "}";
 
 		sb.getBot().setGameState(state);
@@ -78,25 +79,34 @@ public class BotTests extends TestCase {
 		// Populate board with anchors and cross checks
 		sb.getBot().setGameBoard();
 
-		
-		
 		for (int i =0; i < sb.getBot().getGameBoard().size(); i++){
 			for (int j=0;j <11; j++){
-				System.out.print(sb.getBot().getGameBoard().get(i).get(j).letter);
-				System.out.print(",");
+				Square s = sb.getBot().getGameBoard().get(i).get(j);
+				System.out.print((s.letter != "") ? s.letter : " ");
+				System.out.print((s.anchor ? "*" : " ") + "," );
 			}
 			System.out.println(" ");
 		}
 
-		Square s = sb.getBot().getGameBoard().get(10).get(3);
+		Square s = sb.getBot().getGameBoard().get(4).get(7);
 		int limit = 0;
+		StringBuilder builder = new StringBuilder();
 		for(int i = s.col -1; i >= 0; i--){
-			if (sb.getBot().getGameBoard().get(s.row).get(i).anchor){
+			Square prev = sb.getBot().getGameBoard().get(s.row).get(i);
+			if (prev.anchor){
 				break;
 			}
-			limit++;
+			if (prev.letter != ""){
+				builder.append(prev.letter);
+			} else {
+				limit++;
+			}
 		}
-		sb.getBot().extendLeft("", sb.getBot().getNodes().get(0), limit, s, s);
+		System.out.println(sb.getBot().getNodes().get(0).edges);
+		System.out.println(sb.getBot().getNodes().get(36072).letter);
+		Set<String> crossChecks = sb.getBot().getCrossChecks(s);
+		System.out.println(crossChecks);
+		//sb.getBot().extendLeft(builder.toString(), sb.getBot().getNodes().get(0), limit, s, s);
 		//sb.getBot().extendRight("", sb.getBot().getNodes().get(0), s, s);
 
 	}
