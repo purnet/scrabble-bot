@@ -60,9 +60,9 @@ public class BotTests extends TestCase {
 		String state = "{" +
 				" \"gamestate\": [" +
 					"[\"\", \"\", \"\", \"\",\"\", \"\", \"\", \"\", \"\", \"\", \"\"]," +
-					"[\"\", \"\", \"\", \"\",\"\", \"\", \"\", \"\", \" \", \" \", \"\"]," +
+					"[\"\", \"\", \"\", \"\",\"\", \"\", \"\", \"\", \"\", \" \", \"\"]," +
 					"[\"\", \"\", \"\", \"\", \" C \", \"\", \"\", \"\", \"\",\"\", \"\"]," +
-					"[\"\", \"\", \"\", \"P\", \"A\", \"S\", \"T\", \"B\", \"\", \"\", \"\"]," +
+					"[\"\", \"\", \"\", \"N\", \"A\", \"W\", \"O\", \"B\", \"\", \"\", \"\"]," +
 					"[\"\", \"\", \"\", \"\", \"L\", \"\", \"\", \"\", \"\", \"\", \"\"]," +
 					"[\"\", \"\", \"\", \"\", \"C\", \"L\", \"O\", \"T\", \"H\", \"\", \"\"]," +
 					"[\"\", \"\", \"\", \"\", \"U\",\"\", \"\", \"H\", \"E\", \"\", \"\"]," +
@@ -87,8 +87,12 @@ public class BotTests extends TestCase {
 			}
 			System.out.println(" ");
 		}
+		
+		for (Square a : sb.getBot().getAnchors()) {
+			System.out.println("Anchor tile: {" + String.valueOf(a.row) + "," + String.valueOf(a.col) + "} crosschecks: " + a.crossChecks);
+		}
 
-		Square s = sb.getBot().getGameBoard().get(4).get(7);
+		Square s = sb.getBot().getGameBoard().get(10).get(8);
 		int limit = 0;
 		StringBuilder builder = new StringBuilder();
 		for(int i = s.col -1; i >= 0; i--){

@@ -17,6 +17,7 @@ public class ScrabbleBot {
 	private int colLimit;
 	private int rowLimit;
 	private ArrayList<String> tiles;
+	private ArrayList<Square> anchors;
 	
 	// This game state should be as downloaded from Merknera - saved in persistence and will include player info
 	ArrayList<ArrayList<String>> gameState;
@@ -27,6 +28,7 @@ public class ScrabbleBot {
 		dictionary = new ArrayList<String>();
 		nodes = new ArrayList<LexiconNode>();
 		tiles = new ArrayList<String>();
+		anchors = new ArrayList<Square>();
 		LexiconNode root = new LexiconNode(' ');
 		nodes.add(root);
 	}
@@ -76,6 +78,9 @@ public class ScrabbleBot {
 		return gameBoard;
 	}
 	
+	public ArrayList<Square> getAnchors() {
+		return anchors;
+	}
 	
 	private boolean isAnchor(Square s){
 		// look above
@@ -111,6 +116,8 @@ public class ScrabbleBot {
 	
 	public Set<String> getCrossChecks(Square s) {
 		Set<String> crossChecks = new HashSet<String>();
+		
+		// build up the upper part of the cross check word above the anchor
 		StringBuilder topPart = new StringBuilder();
 		for (int i = s.row -1; i >= 0; i--){
 			String letter = gameState.get(i).get(s.col).trim();
@@ -120,9 +127,10 @@ public class ScrabbleBot {
 				break;
 			}
 		}
-		System.out.println("TopPart: "+ topPart + "$");
-		int nodeStart = 0;
+		topPart.reverse();
+		
 		// find starting node from lexicon traversal of top part
+		int nodeStart = 0;
 		for (char l : topPart.toString().toCharArray()){
 			for (int e : nodes.get(nodeStart).edges) {
 				if (l == nodes.get(e).letter.charAt(0)){
@@ -131,24 +139,18 @@ public class ScrabbleBot {
 				}
 			}
 		}
-		System.out.println("nodeStart "+String.valueOf(nodeStart));
+
 		// for all edges of node from top part attempt to go down
 		for (int e : nodes.get(nodeStart).edges) {
 			LexiconNode nextNode = nodes.get(e);
-			System.out.println("-----------------");
-			System.out.println("edge e:"+ String.valueOf(e)+ " letter: " + nextNode.letter );
-			System.out.println("------------------------------------------------------");
 			boolean checkTerminal = true;
 			for (int i = s.row +1; i <= rowLimit; i++){
 				String letter = gameState.get(i).get(s.col).trim();
-				System.out.println("row: "+ String.valueOf(i) + " letter:" + letter + "$");
 				if (Pattern.matches("[a-zA-Z]", letter)){
 					boolean found = false;
 					for (int j : nextNode.edges){
-						//System.out.println("edge j:" + String.valueOf(j) + " letter:" + nodes.get(j).letter);
 						if (letter.equals(nodes.get(j).letter)){
 							nextNode = nodes.get(j);
-							System.out.println("FOUND " + nextNode.letter + " terminal:" + (nextNode.terminal ? "true" : "false"));
 							found = true;
 							break;
 						}
@@ -162,7 +164,6 @@ public class ScrabbleBot {
 				}
 			}
 			if (checkTerminal && nextNode.terminal){
-				System.out.println("Adding letter " + nodes.get(e).letter);
 				crossChecks.add(nodes.get(e).letter);
 			}
 		}
@@ -177,9 +178,15 @@ public class ScrabbleBot {
 			for (int j=0; j < row.size(); j++){		
 				Square s = new Square(i,j, gameState.get(i).get(j));
 				s.anchor = ((s.letter != "") ? false : isAnchor(s));
-				newRow.add(s);	
+				newRow.add(s);
+				if (s.anchor){
+					anchors.add(s);
+				}
 			}
 			this.gameBoard.add(newRow);
+		}
+		for (Square anchor : anchors) {
+			gameBoard.get(anchor.row).get(anchor.col).crossChecks = getCrossChecks(anchor);
 		}
 	}
 	
