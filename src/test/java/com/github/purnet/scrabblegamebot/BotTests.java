@@ -54,9 +54,9 @@ public class BotTests extends TestCase {
 		String state = "{" +
 				" \"gamestate\": [" +
 					"[\"\", \"\", \"\", \"\",\"\", \"\", \"\", \"\", \"\", \"\", \"\"]," +
-					"[\"\", \"\", \"\", \"\",\"\", \"\", \"\", \"\", \"\", \" \", \"\"]," +
-					"[\"\", \"\", \"\", \"\", \" C \", \"\", \"\", \"\", \"\",\"\", \"\"]," +
-					"[\"\", \"\", \"\", \"N\", \"A\", \"W\", \"O\", \"B\", \"\", \"\", \"\"]," +
+					"[\"\", \"\", \"\", \"\",\"\", \"\", \"\", \"\", \"\", \"\", \"\"]," +
+					"[\"\", \"\", \"\", \"\", \"C\", \"\", \"\", \"\", \"\",\"\", \"\"]," +
+					"[\"\", \"\", \"\", \"P\", \"A\", \"W\", \"S\", \"\", \"\", \"\", \"\"]," +
 					"[\"\", \"\", \"\", \"\", \"L\", \"\", \"\", \"\", \"\", \"\", \"\"]," +
 					"[\"\", \"\", \"\", \"\", \"C\", \"L\", \"O\", \"T\", \"H\", \"\", \"\"]," +
 					"[\"\", \"\", \"\", \"\", \"U\",\"\", \"\", \"\", \"E\", \"\", \"\"]," +
@@ -82,9 +82,15 @@ public class BotTests extends TestCase {
 			System.out.println(" ");
 		}
 		
-		for (Square a : sb.getBot().getAnchors()) {
-			System.out.println("Anchor tile: {" + String.valueOf(a.row) + "," + String.valueOf(a.col) + "} crosschecks: " + a.crossChecks);
+		for (int i=0; i < sb.getBot().getGameBoard().size(); i++) {
+			for (int j=0; j < sb.getBot().getGameBoard().get(i).size(); j++) {
+				Square s = sb.getBot().getGameBoard().get(i).get(j);
+				if (s.anchor){
+					System.out.println("Anchor tile: {" + String.valueOf(s.row) + "," + String.valueOf(s.col) + "} crosschecks: " + s.crossChecks);
+				}
+			}
 		}
+
 
 //		for (int i = 0; i < sb.getBot().getStandardBoard().get(0).size(); i++){
 //			BoardSquareScore score = (BoardSquareScore) sb.getBot().getStandardBoard().get(0).get(i);
@@ -96,8 +102,8 @@ public class BotTests extends TestCase {
 //	        System.out.println(pair.getKey() + " = " + pair.getValue());
 //	        it.remove(); // avoids a ConcurrentModificationException
 //	    }
-		//sb.getBot().makeBestMove();
-		sb.getBot().scoreWord("ECAD", sb.getBot().getGameBoard().get(2).get(3));
+		sb.getBot().makeBestMove();
+		//sb.getBot().scoreWord("ECAD", sb.getBot().getGameBoard().get(2).get(3));
 		
 //		Square s = sb.getBot().getGameBoard().get(10).get(3);
 //

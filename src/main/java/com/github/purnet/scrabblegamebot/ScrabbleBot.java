@@ -19,9 +19,9 @@ public class ScrabbleBot {
 	private int colLimit;
 	private int rowLimit;
 	private ArrayList<String> tiles;
-	private ArrayList<Square> anchors;
 	private ArrayList<ArrayList<BoardSquareScore>> standardBoard;
 	private Map<String,Integer> letterPoints;
+	private Move bestMove;
 	
 	// This game state should be as downloaded from Merknera - saved in persistence and will include player info
 	ArrayList<ArrayList<String>> gameState;
@@ -32,10 +32,10 @@ public class ScrabbleBot {
 		dictionary = new ArrayList<String>();
 		nodes = new ArrayList<LexiconNode>();
 		tiles = new ArrayList<String>();
-		anchors = new ArrayList<Square>();
 		standardBoard = new ArrayList<ArrayList<BoardSquareScore>>();
 		letterPoints = new HashMap<String,Integer>();
 		LexiconNode root = new LexiconNode(' ');
+		bestMove = null;
 		nodes.add(root);
 	}
 	public ArrayList<LexiconNode> getNodes() {
@@ -126,35 +126,31 @@ public class ScrabbleBot {
 		return gameBoard;
 	}
 	
-	public ArrayList<Square> getAnchors() {
-		return anchors;
-	}
-	
 	private boolean isAnchor(Square s){
 		// look above
 		if (s.row > 0){
-			String above = gameState.get(s.row -1).get(s.col);
+			String above = gameBoard.get(s.row -1).get(s.col).letter;
 			if (Pattern.matches("[a-zA-Z]", above.trim())){
 				return true;
 			}
 		}
 		// look below
 		if (s.row < rowLimit){
-			String below = gameState.get(s.row +1).get(s.col);
+			String below = gameBoard.get(s.row +1).get(s.col).letter;
 			if (Pattern.matches("[a-zA-Z]", below.trim())){
 				return true;
 			}
 		}
 		// look left
 		if (s.col > 0){
-			String left = gameState.get(s.row).get(s.col -1);
+			String left = gameBoard.get(s.row).get(s.col -1).letter;
 			if (Pattern.matches("[a-zA-Z]", left.trim())){
 				return true;
 			}
 		}
 		// look right
 		if (s.col < colLimit){
-			String right = gameState.get(s.row).get(s.col +1);
+			String right = gameBoard.get(s.row).get(s.col +1).letter;
 			if (Pattern.matches("[a-zA-Z]", right.trim())){
 				return true;
 			}
@@ -172,7 +168,7 @@ public class ScrabbleBot {
 		// build up the upper part of the cross check word above the anchor
 		StringBuilder topPart = new StringBuilder();
 		for (int i = s.row -1; i >= 0; i--){
-			String letter = gameState.get(i).get(s.col).trim();
+			String letter = gameBoard.get(i).get(s.col).letter;
 			if (Pattern.matches("[a-zA-Z]", letter)){
 				topPart.append(letter);
 			} else {
@@ -197,7 +193,7 @@ public class ScrabbleBot {
 			LexiconNode nextNode = nodes.get(e);
 			boolean checkTerminal = true;
 			for (int i = s.row +1; i <= rowLimit; i++){
-				String letter = gameState.get(i).get(s.col).trim();
+				String letter = gameBoard.get(i).get(s.col).letter;
 				if (Pattern.matches("[a-zA-Z]", letter)){
 					boolean found = false;
 					for (int j : nextNode.edges){
@@ -230,16 +226,18 @@ public class ScrabbleBot {
 			for (int j=0; j < row.size(); j++){		
 				BoardSquareScore info = standardBoard.get(i).get(j);
 				Square s = new Square(i,j, gameState.get(i).get(j), info.getLS(), info.getWS(), info.isStart());
-				s.anchor = ((s.letter != "") ? false : isAnchor(s));
 				newRow.add(s);
-				if (s.anchor){
-					anchors.add(s);
-				}
 			}
 			this.gameBoard.add(newRow);
 		}
-		for (Square anchor : anchors) {
-			gameBoard.get(anchor.row).get(anchor.col).crossChecks = getCrossChecks(anchor);
+		for (int i=0; i < gameBoard.size(); i++) {
+			for (int j=0; j < gameBoard.get(i).size(); j++) {
+				Square s = gameBoard.get(i).get(j);
+				s.anchor = ((s.letter != "") ? false : isAnchor(s));
+				if  (s.anchor){
+					gameBoard.get(i).get(j).crossChecks = getCrossChecks(s);
+				}
+			}
 		}
 	}
 	
@@ -294,29 +292,30 @@ public class ScrabbleBot {
 	public void scoreWord(String word, Square start){
 		StringBuilder positions = new StringBuilder();// TODO delete this
 		int pos = start.col;// TODO delete this
-
+//System.out.println("scoring : "+ word + " start {"+start.row + ","+start.col+"}");
 		Square s = start;
 		ArrayList<Integer> multipliers = new ArrayList<Integer>();
+		ArrayList<TilePlacement> tilePlacement = new ArrayList<TilePlacement>();
 		int acrossTotal = 0;
 		int grandTotal = 0;
 		for (char l : word.toCharArray()) { 
 			positions.append(String.valueOf(pos) + ","); // TODO delete this
 			pos++; // TODO delete this
+			TilePlacement tp = new TilePlacement(s.row, s.col, String.valueOf(l));
+			tilePlacement.add(tp);
+			//System.out.println("Scoring letter: " + l + " letter point: "+ letterPoints.get(String.valueOf(l)) + " letterScore" + s.letterScore);
+			
+			//System.out.println("AcrossTotal:" + acrossTotal);
 			if (s.letter == "") {
-				System.out.println("Scoring letter: " + String.valueOf(l));
-				multipliers.add(s.wordScore);
-				System.out.println("AcrossTotal:" + String.valueOf(acrossTotal));
-				System.out.println(" letter point: "+ String.valueOf(letterPoints.get(String.valueOf(l))) + " letterScore" + String.valueOf(s.letterScore));
-				System.out.println("AcrossTotal:" + String.valueOf(acrossTotal));
 				acrossTotal += (letterPoints.get(String.valueOf(l)) * s.letterScore);
+				multipliers.add(s.wordScore);
 				int downTotal = 0;
 				// look upwards
 				for (int i = s.row -1; i >= 0; i--){
 					Square squareUp = gameBoard.get(i).get(s.col);
-					
 					if (squareUp.letter != ""){
-						System.out.println("got here: " + squareUp.letter);
 						downTotal += letterPoints.get(squareUp.letter);
+						//System.out.println(" letter: " + squareUp.letter + ", " + letterPoints.get(squareUp.letter));
 					} else {
 						break;
 					}
@@ -325,31 +324,46 @@ public class ScrabbleBot {
 				for (int i = s.row +1; i <= rowLimit; i++){
 					Square squareDown = gameBoard.get(i).get(s.col);
 					if (squareDown.letter != ""){
-						System.out.println("got here: " + squareDown.letter);
 						downTotal += letterPoints.get(squareDown.letter);
+						//System.out.println(" letter: " + squareDown.letter + ", " + letterPoints.get(squareDown.letter));
 					} else {
 						break;
 					}
 				}
-				downTotal += downTotal * s.wordScore;
-				grandTotal += downTotal;
+				if (downTotal > 0){
+					downTotal += (letterPoints.get(String.valueOf(l)) * s.letterScore);
+					downTotal += downTotal * (s.wordScore > 1 ? s.wordScore : 0);
+					grandTotal += downTotal;
+				}
+				
+			} else {
+				acrossTotal += letterPoints.get(String.valueOf(l));
 			}
-			s = gameBoard.get(s.row).get(s.col + 1);
+			s = gameBoard.get(s.row).get(Math.min(s.col + 1,colLimit));
 		}
 
 	    for (int m : multipliers) {
-	    	acrossTotal += acrossTotal * m;
+	    	//System.out.println("acrossTotal: "+ acrossTotal + " x multiplier: " + (m > 1 ? m : 0));
+	    	if (m > 1){
+	    		acrossTotal = acrossTotal * m;
+	    	}
 	    }
 	    grandTotal += acrossTotal;	
 	    positions.deleteCharAt(positions.lastIndexOf(","));
 		System.out.println(word + " row:" + String.valueOf(start.row) + " positions {"+ positions+"}" + " score:" +String.valueOf(grandTotal));
-		
+		if (bestMove == null){
+			bestMove = new Move("PLAY", tilePlacement, word, grandTotal);
+		} else if (bestMove.getScore() < grandTotal || (bestMove.getScore() == grandTotal && word.length() < bestMove.getWord().length())){
+			bestMove.setPlaytiles(tilePlacement);
+			bestMove.setScore(grandTotal);
+			bestMove.setWord(word);
+		}
 	}
 	
 	public void extendLeft(String partialWord, LexiconNode node, int limit, Square origin, Square anchor){
-//		System.out.println("------------------------------------------------------");
-//		System.out.println("GOING RIGHT(" +partialWord + ", "+node.letter+", "+String.valueOf(origin.col));
-//		System.out.println("------------------------------------------------------");
+		System.out.println("------------------------------------------------------");
+		System.out.println("GOING RIGHT(" +partialWord + ", "+node.letter+", "+String.valueOf(origin.col)+" "+anchor.col);
+		System.out.println("------------------------------------------------------");
 		extendRight(partialWord, node, anchor, origin, anchor);
 		if (limit > 0 && (origin.col -1) >= 0){
 			Square s = gameBoard.get(origin.row).get(origin.col -1);
@@ -368,9 +382,11 @@ public class ScrabbleBot {
 		if (square.letter == "") {
 			for (int e : node.edges){				
 				LexiconNode nextNode = nodes.get(e);
+				//System.out.println(nextNode.letter + " square "+ square.row + ","+ square.col);
 				if (tiles.contains(nextNode.letter) && 
 						(square.crossChecks.contains(nextNode.letter) || square.crossChecks.contains("*")) ){
-					if (nextNode.terminal && (partialWord + nextNode.letter).length() > (anchor.col - origin.col + 1) ) {
+					//System.out.println((partialWord + nextNode.letter).length() + " " + (anchor.col - origin.col)+ " isTerminal " + (nextNode.terminal? "Y" : ""));
+					if (nextNode.terminal && (partialWord + nextNode.letter).length() > (anchor.col - origin.col) ) {
 						scoreWord(partialWord + nextNode.letter, origin);
 					}
 					tiles.remove(nextNode.letter);
@@ -398,22 +414,100 @@ public class ScrabbleBot {
 		}
 	}
 	
-	public void makeBestMove() {
-		for (Square anchor : anchors){
-			int limit = 0;
-			StringBuilder builder = new StringBuilder();
-			for(int i = anchor.col -1; i >= 0; i--){
-				Square prev = gameBoard.get(anchor.row).get(i);
-				if (prev.anchor){
-					break;
-				}
-				if (prev.letter != ""){
-					builder.append(prev.letter);
-				} else {
-					limit++;
+	public void traverseBoard(){
+		for (int i=0; i < gameBoard.size(); i++) {
+			for (int j=0; j < gameBoard.get(i).size(); j++) {
+				Square s = gameBoard.get(i).get(j);
+				Square origin = s;
+				if (s.anchor){
+					int limit = 0;
+					StringBuilder builder = new StringBuilder();
+					for(int k = s.col -1; k >= 0; k--){
+						Square prev = gameBoard.get(s.row).get(k);
+						if (prev.anchor){
+							break;
+						}
+						if (prev.letter != ""){
+							builder.append(prev.letter);
+							origin = prev;
+						} else {
+							limit++;
+						}
+					}
+					if ((s.row==3&&s.col==2)||(s.row==3&&s.col==7)){
+						LexiconNode startNode = nodes.get(0);
+						if (builder.toString().length() > 0) {
+							for (char l : builder.reverse().toString().toCharArray()){
+								for (int e : startNode.edges){
+									if (nodes.get(e).letter.equals(String.valueOf(l))){
+										startNode = nodes.get(e);
+									}
+								}
+							}
+						}
+						extendLeft(builder.toString(), startNode, limit, origin, s);
+					}
+					
 				}
 			}
-			extendLeft(builder.toString(), nodes.get(0), limit, anchor, anchor);
+		}
+	}
+	
+	public void makeBestMove() {
+		System.out.println("---------------");
+		System.out.println("PLAY ACROSS WORDS");
+		System.out.println("---------------");
+		
+		traverseBoard();
+
+		// invert board and recalculate cross checks
+		ArrayList<ArrayList<Square>> invertedBoard = new ArrayList<ArrayList<Square>>();	
+		for (int i=0; i <= colLimit; i++) {
+			ArrayList<Square> row = new ArrayList<Square>();
+			for (int j=0; j <= rowLimit; j++){
+				Square s = gameBoard.get(j).get(i);
+				Square ns = new Square(i, j, s.letter, s.letterScore, s.wordScore, s.start);
+				//ns.anchor = s.anchor;
+				row.add(ns);
+			}
+			invertedBoard.add(row);
+		}
+		gameBoard.clear();
+		gameBoard.addAll(invertedBoard);
+
+		for (int i=0; i < gameBoard.size(); i++) {
+			for (int j=0; j < gameBoard.get(i).size(); j++) {
+				Square s = gameBoard.get(i).get(j);
+				s.anchor = ((s.letter != "") ? false : isAnchor(s));
+				if (s.anchor){
+					gameBoard.get(i).get(j).crossChecks = getCrossChecks(s);
+				}
+			}
+		}
+		
+		System.out.println("---------------");
+		System.out.println("PLAY DOWN WORDS");
+		System.out.println("---------------");
+		for (int i =0; i < gameBoard.size(); i++){
+			for (int j=0;j <gameBoard.get(i).size(); j++){
+				Square s = gameBoard.get(i).get(j);
+				System.out.print((s.letter != "") ? s.letter : " ");
+				System.out.print((s.anchor ? "*" : " ") + "," );
+			}
+			System.out.println(" ");
+		}
+		for (int i=0; i < gameBoard.size(); i++) {
+			for (int j=0; j < gameBoard.get(i).size(); j++) {
+				Square s = gameBoard.get(i).get(j);
+				if (s.anchor){
+					System.out.println("Anchor tile: {" + String.valueOf(s.row) + "," + String.valueOf(s.col) + "} crosschecks: " + s.crossChecks);
+				}
+			}
+		}
+		traverseBoard();
+		
+		if (bestMove != null){
+			System.out.println(bestMove.getWord() + " scores: " + bestMove.getScore());
 		}
 	}
 }
