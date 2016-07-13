@@ -361,9 +361,9 @@ public class ScrabbleBot {
 	}
 	
 	public void extendLeft(String partialWord, LexiconNode node, int limit, Square origin, Square anchor){
-		System.out.println("------------------------------------------------------");
-		System.out.println("GOING RIGHT(" +partialWord + ", "+node.letter+", "+String.valueOf(origin.col)+" "+anchor.col);
-		System.out.println("------------------------------------------------------");
+//		System.out.println("------------------------------------------------------");
+//		System.out.println("GOING RIGHT(" +partialWord + ", "+node.letter+", "+String.valueOf(origin.col)+" "+anchor.col);
+//		System.out.println("------------------------------------------------------");
 		extendRight(partialWord, node, anchor, origin, anchor);
 		if (limit > 0 && (origin.col -1) >= 0){
 			Square s = gameBoard.get(origin.row).get(origin.col -1);
@@ -386,7 +386,8 @@ public class ScrabbleBot {
 				if (tiles.contains(nextNode.letter) && 
 						(square.crossChecks.contains(nextNode.letter) || square.crossChecks.contains("*")) ){
 					//System.out.println((partialWord + nextNode.letter).length() + " " + (anchor.col - origin.col)+ " isTerminal " + (nextNode.terminal? "Y" : ""));
-					if (nextNode.terminal && (partialWord + nextNode.letter).length() > (anchor.col - origin.col) ) {
+					if (nextNode.terminal && 
+							gameBoard.get(square.row).get(Math.min(colLimit, square.col + 1)).letter == ""){
 						scoreWord(partialWord + nextNode.letter, origin);
 					}
 					tiles.remove(nextNode.letter);
@@ -434,7 +435,7 @@ public class ScrabbleBot {
 							limit++;
 						}
 					}
-					if ((s.row==3&&s.col==2)||(s.row==3&&s.col==7)){
+					//if ((s.row==3&&s.col==2)||(s.row==3&&s.col==7)){
 						LexiconNode startNode = nodes.get(0);
 						if (builder.toString().length() > 0) {
 							for (char l : builder.reverse().toString().toCharArray()){
@@ -446,7 +447,7 @@ public class ScrabbleBot {
 							}
 						}
 						extendLeft(builder.toString(), startNode, limit, origin, s);
-					}
+					//}
 					
 				}
 			}
