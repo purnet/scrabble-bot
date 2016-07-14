@@ -19,9 +19,11 @@ public class ScrabbleBot {
 	private int colLimit;
 	private int rowLimit;
 	private ArrayList<String> tiles;
+	private ArrayList<String> fullTileRack;
 	private ArrayList<ArrayList<BoardSquareScore>> standardBoard;
 	private Map<String,Integer> letterPoints;
 	private Move bestMove;
+	private boolean boardInverted;
 	
 	// This game state should be as downloaded from Merknera - saved in persistence and will include player info
 	ArrayList<ArrayList<String>> gameState;
@@ -32,11 +34,13 @@ public class ScrabbleBot {
 		dictionary = new ArrayList<String>();
 		nodes = new ArrayList<LexiconNode>();
 		tiles = new ArrayList<String>();
+		fullTileRack = new ArrayList<String>();
 		standardBoard = new ArrayList<ArrayList<BoardSquareScore>>();
 		letterPoints = new HashMap<String,Integer>();
 		LexiconNode root = new LexiconNode(' ');
 		bestMove = null;
 		nodes.add(root);
+		boardInverted = false;
 	}
 	public ArrayList<LexiconNode> getNodes() {
 		return nodes;
@@ -83,9 +87,10 @@ public class ScrabbleBot {
 			if (Pattern.matches("\\w", tile.trim())) {
 				this.tiles.add(tile.trim().toUpperCase());
 			} else {
-				this.tiles.add("");
+				this.tiles.add("*");
 			}
 		}
+		this.fullTileRack.addAll(tiles);
 	}
 	public void setStandardBoard(String json) {
 		ObjectMapper mapper = new ObjectMapper();
@@ -301,12 +306,14 @@ public class ScrabbleBot {
 		for (char l : word.toCharArray()) { 
 			positions.append(String.valueOf(pos) + ","); // TODO delete this
 			pos++; // TODO delete this
-			TilePlacement tp = new TilePlacement(s.row, s.col, String.valueOf(l));
-			tilePlacement.add(tp);
+			
 			//System.out.println("Scoring letter: " + l + " letter point: "+ letterPoints.get(String.valueOf(l)) + " letterScore" + s.letterScore);
 			
 			//System.out.println("AcrossTotal:" + acrossTotal);
 			if (s.letter == "") {
+				String tile = (fullTileRack.contains(String.valueOf(l)) ? String.valueOf(l) : "*");
+				TilePlacement tp = new TilePlacement((boardInverted ? s.col : s.row),(boardInverted ? s.row : s.col), tile);
+				tilePlacement.add(tp);
 				acrossTotal += (letterPoints.get(String.valueOf(l)) * s.letterScore);
 				multipliers.add(s.wordScore);
 				int downTotal = 0;
@@ -350,7 +357,12 @@ public class ScrabbleBot {
 	    }
 	    grandTotal += acrossTotal;	
 	    positions.deleteCharAt(positions.lastIndexOf(","));
-		System.out.println(word + " row:" + String.valueOf(start.row) + " positions {"+ positions+"}" + " score:" +String.valueOf(grandTotal));
+	    String newLine = System.getProperty("line.separator");
+		System.out.print(word + " row:" + String.valueOf(start.row) + " positions {"+ positions+"}" + " score:" +String.valueOf(grandTotal));
+		for (TilePlacement t : tilePlacement) {
+			System.out.print(" placement: "+ t.getTile() +" {" + t.getRow() + ","+ t.getCol()+"}");
+		}
+		System.out.print(newLine);
 		if (bestMove == null){
 			bestMove = new Move("PLAY", tilePlacement, word, grandTotal);
 		} else if (bestMove.getScore() < grandTotal || (bestMove.getScore() == grandTotal && word.length() < bestMove.getWord().length())){
@@ -373,6 +385,10 @@ public class ScrabbleBot {
 					tiles.remove(nextNode.letter);
 					extendLeft(partialWord + nextNode.letter, nextNode, limit -1, s, anchor);
 					tiles.add(nextNode.letter);
+				} else if (tiles.contains("*")){
+					tiles.remove("*");
+					extendLeft(partialWord + nextNode.letter, nextNode, limit -1, s, anchor);
+					tiles.add("*");
 				}
 			}
 		}
@@ -383,18 +399,19 @@ public class ScrabbleBot {
 			for (int e : node.edges){				
 				LexiconNode nextNode = nodes.get(e);
 				//System.out.println(nextNode.letter + " square "+ square.row + ","+ square.col);
-				if (tiles.contains(nextNode.letter) && 
+				if ((tiles.contains(nextNode.letter) || tiles.contains("*")) && 
 						(square.crossChecks.contains(nextNode.letter) || square.crossChecks.contains("*")) ){
 					//System.out.println((partialWord + nextNode.letter).length() + " " + (anchor.col - origin.col)+ " isTerminal " + (nextNode.terminal? "Y" : ""));
 					if (nextNode.terminal && 
 							gameBoard.get(square.row).get(Math.min(colLimit, square.col + 1)).letter == ""){
 						scoreWord(partialWord + nextNode.letter, origin);
 					}
-					tiles.remove(nextNode.letter);
+					String removeTile = (tiles.contains(nextNode.letter) ? nextNode.letter : "*");
+					tiles.remove(removeTile);
 					if ((square.col + 1) <= colLimit) {
 						extendRight(partialWord + nextNode.letter, nextNode, gameBoard.get(square.row).get(square.col + 1), origin, anchor);
 					}
-					tiles.add(nextNode.letter);
+					tiles.add(removeTile);
 				}	
 			}
 		} else {
@@ -468,7 +485,6 @@ public class ScrabbleBot {
 			for (int j=0; j <= rowLimit; j++){
 				Square s = gameBoard.get(j).get(i);
 				Square ns = new Square(i, j, s.letter, s.letterScore, s.wordScore, s.start);
-				//ns.anchor = s.anchor;
 				row.add(ns);
 			}
 			invertedBoard.add(row);
@@ -485,6 +501,7 @@ public class ScrabbleBot {
 				}
 			}
 		}
+		boardInverted = true;
 		
 		System.out.println("---------------");
 		System.out.println("PLAY DOWN WORDS");
