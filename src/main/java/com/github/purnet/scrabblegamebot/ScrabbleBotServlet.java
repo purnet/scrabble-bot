@@ -19,8 +19,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import net.minidev.json.JSONObject;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2ParseException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
@@ -47,6 +46,8 @@ public class ScrabbleBotServlet extends HttpServlet {
 			e.printStackTrace();
 			throw new ServletException("Error in initialising servlet");
 		}
+		bot.populateLexicon();
+		
 		super.init();
 	}
 	
@@ -200,7 +201,7 @@ public class ScrabbleBotServlet extends HttpServlet {
 	}
 	
 	
-	private JSONRPC2Response processRequest(JSONRPC2Request req) {
+	private JSONRPC2Response processRequest(JSONRPC2Request req) throws JsonProcessingException {
 		//TODO implement error handle and exception if method is unknown or unsupported
 		JSONRPC2Response resp = null;
 		switch (req.getMethod()) {
@@ -262,37 +263,32 @@ public class ScrabbleBotServlet extends HttpServlet {
 		return resp;
 	}
 	
-	private JSONRPC2Response createMove(JSONRPC2Request req) {
+	private JSONRPC2Response createMove(JSONRPC2Request req) throws JsonProcessingException {
 		Map<String,Object> params = req.getNamedParams();
 		JSONObject body = new JSONObject();
 		JSONObject variables = new JSONObject();
 		JSONObject gameStateJSON = new JSONObject();
 		gameStateJSON.put("gamestate", params.get("gamestate"));
-				
-		ObjectMapper mapper = new ObjectMapper();
-		GameState gs = new GameState();
-		try {
-			gs = mapper.readValue(gameStateJSON.toJSONString(), GameState.class);
-		} catch (JsonParseException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (JsonMappingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
+		gameStateJSON.put("tiles", params.get("tiles"));
+					
 		variables.put("merkneraGameId", params.get("gameid"));
 		variables.put("tiles", params.get("tiles"));
 		variables.put("state", params.get("gamestate"));
 
 		body.put("query", "mutation insertMove ($merkneraGameId: Int!, $state: String!, $tiles: String!){ game: createMove(merkneraGameId : $merkneraGameId, gameState : $state, tiles: $tiles\n  ) {id, gameState, tiles  }}");
 		body.put("variables", variables.toString());
-		Response r = makeHTTPRequest(persistenceLayerUrl, body.toString(), "POST");
+		//Response r = makeHTTPRequest(persistenceLayerUrl, body.toString(), "POST");
+		
+		bot.setGameState(gameStateJSON.toJSONString());
+		bot.setGameBoard();
+		Move m = bot.makeBestMove();
+		ObjectMapper mapper = new ObjectMapper();
+		String resultJSON = mapper.writeValueAsString(m); 
+		
 		Map<String, Object> respMap = new HashMap<String, Object>();
+		respMap.put("result", resultJSON);
 		JSONRPC2Response resp = new JSONRPC2Response(respMap, req.getID());
+
 		return resp;
 	}
 

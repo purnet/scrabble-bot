@@ -24,6 +24,7 @@ public class ScrabbleBot {
 	private Map<String,Integer> letterPoints;
 	private Move bestMove;
 	private boolean boardInverted;
+	private boolean firstMove;
 	
 	// This game state should be as downloaded from Merknera - saved in persistence and will include player info
 	ArrayList<ArrayList<String>> gameState;
@@ -41,6 +42,7 @@ public class ScrabbleBot {
 		bestMove = null;
 		nodes.add(root);
 		boardInverted = false;
+		firstMove = true;
 	}
 	public ArrayList<LexiconNode> getNodes() {
 		return nodes;
@@ -232,6 +234,9 @@ public class ScrabbleBot {
 				BoardSquareScore info = standardBoard.get(i).get(j);
 				Square s = new Square(i,j, gameState.get(i).get(j), info.getLS(), info.getWS(), info.isStart());
 				newRow.add(s);
+				if (s.letter != ""){
+					firstMove = false;
+				}
 			}
 			this.gameBoard.add(newRow);
 		}
@@ -471,61 +476,76 @@ public class ScrabbleBot {
 		}
 	}
 	
-	public void makeBestMove() {
-		System.out.println("---------------");
-		System.out.println("PLAY ACROSS WORDS");
-		System.out.println("---------------");
-		
-		traverseBoard();
-
-		// invert board and recalculate cross checks
-		ArrayList<ArrayList<Square>> invertedBoard = new ArrayList<ArrayList<Square>>();	
-		for (int i=0; i <= colLimit; i++) {
-			ArrayList<Square> row = new ArrayList<Square>();
-			for (int j=0; j <= rowLimit; j++){
-				Square s = gameBoard.get(j).get(i);
-				Square ns = new Square(i, j, s.letter, s.letterScore, s.wordScore, s.start);
-				row.add(ns);
-			}
-			invertedBoard.add(row);
-		}
-		gameBoard.clear();
-		gameBoard.addAll(invertedBoard);
-
-		for (int i=0; i < gameBoard.size(); i++) {
-			for (int j=0; j < gameBoard.get(i).size(); j++) {
-				Square s = gameBoard.get(i).get(j);
-				s.anchor = ((s.letter != "") ? false : isAnchor(s));
-				if (s.anchor){
-					gameBoard.get(i).get(j).crossChecks = getCrossChecks(s);
+	public Move makeBestMove() {
+		if (firstMove){
+			for (int i=0; i <= colLimit; i++) {
+				for (int j=0; j <= rowLimit; j++) {
+					Square s = gameBoard.get(i).get(j);
+					if (s.start){
+						extendRight("",nodes.get(0),s,s,s);
+						break;
+					}
 				}
 			}
-		}
-		boardInverted = true;
-		
-		System.out.println("---------------");
-		System.out.println("PLAY DOWN WORDS");
-		System.out.println("---------------");
-		for (int i =0; i < gameBoard.size(); i++){
-			for (int j=0;j <gameBoard.get(i).size(); j++){
-				Square s = gameBoard.get(i).get(j);
-				System.out.print((s.letter != "") ? s.letter : " ");
-				System.out.print((s.anchor ? "*" : " ") + "," );
+		} else {
+			System.out.println("---------------");
+			System.out.println("PLAY ACROSS WORDS");
+			System.out.println("---------------");
+			
+			traverseBoard();
+	
+			// invert board and recalculate cross checks
+			ArrayList<ArrayList<Square>> invertedBoard = new ArrayList<ArrayList<Square>>();	
+			for (int i=0; i <= colLimit; i++) {
+				ArrayList<Square> row = new ArrayList<Square>();
+				for (int j=0; j <= rowLimit; j++){
+					Square s = gameBoard.get(j).get(i);
+					Square ns = new Square(i, j, s.letter, s.letterScore, s.wordScore, s.start);
+					row.add(ns);
+				}
+				invertedBoard.add(row);
 			}
-			System.out.println(" ");
-		}
-		for (int i=0; i < gameBoard.size(); i++) {
-			for (int j=0; j < gameBoard.get(i).size(); j++) {
-				Square s = gameBoard.get(i).get(j);
-				if (s.anchor){
-					System.out.println("Anchor tile: {" + String.valueOf(s.row) + "," + String.valueOf(s.col) + "} crosschecks: " + s.crossChecks);
+			gameBoard.clear();
+			gameBoard.addAll(invertedBoard);
+	
+			for (int i=0; i < gameBoard.size(); i++) {
+				for (int j=0; j < gameBoard.get(i).size(); j++) {
+					Square s = gameBoard.get(i).get(j);
+					s.anchor = ((s.letter != "") ? false : isAnchor(s));
+					if (s.anchor){
+						gameBoard.get(i).get(j).crossChecks = getCrossChecks(s);
+					}
 				}
 			}
+			boardInverted = true;
+			
+			System.out.println("---------------");
+			System.out.println("PLAY DOWN WORDS");
+			System.out.println("---------------");
+			for (int i =0; i < gameBoard.size(); i++){
+				for (int j=0;j <gameBoard.get(i).size(); j++){
+					Square s = gameBoard.get(i).get(j);
+					System.out.print((s.letter != "") ? s.letter : " ");
+					System.out.print((s.anchor ? "*" : " ") + "," );
+				}
+				System.out.println(" ");
+			}
+			for (int i=0; i < gameBoard.size(); i++) {
+				for (int j=0; j < gameBoard.get(i).size(); j++) {
+					Square s = gameBoard.get(i).get(j);
+					if (s.anchor){
+						System.out.println("Anchor tile: {" + String.valueOf(s.row) + "," + String.valueOf(s.col) + "} crosschecks: " + s.crossChecks);
+					}
+				}
+			}
+			traverseBoard();
 		}
-		traverseBoard();
-		
 		if (bestMove != null){
 			System.out.println(bestMove.getWord() + " scores: " + bestMove.getScore());
+			return bestMove;
+		} else {
+			//TODO : swap tiles or pass decide here please
+			return bestMove;
 		}
 	}
 }

@@ -52,6 +52,7 @@ public class BotTests extends TestCase {
 		sb.getBot().populateLexicon();
 		
 		String state = "{" +
+		       // " \"gameid\": 78," +
 				" \"gamestate\": [" +
 					"[\"\", \"\", \"\", \"\",\"\", \"\", \"\", \"\", \"\", \"\", \"\"]," +
 					"[\"\", \"\", \"\", \"\",\"\", \"\", \"\", \"\", \"\", \"\", \"\"]," +
