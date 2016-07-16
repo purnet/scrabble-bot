@@ -1,6 +1,8 @@
 package com.github.purnet.scrabblegamebot;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -25,11 +27,7 @@ public class ScrabbleBot {
 	private Move bestMove;
 	private boolean boardInverted;
 	private boolean firstMove;
-	
-	// This game state should be as downloaded from Merknera - saved in persistence and will include player info
-	ArrayList<ArrayList<String>> gameState;
-	// the actual game board should be managed by the bot with information on how to play a move
-	ArrayList<ArrayList<Square>> gameBoard = new ArrayList<ArrayList<Square>>();
+	private ArrayList<ArrayList<Square>> gameBoard;
 	
 	public ScrabbleBot(){
 		dictionary = new ArrayList<String>();
@@ -39,10 +37,10 @@ public class ScrabbleBot {
 		standardBoard = new ArrayList<ArrayList<BoardSquareScore>>();
 		letterPoints = new HashMap<String,Integer>();
 		LexiconNode root = new LexiconNode(' ');
-		bestMove = null;
 		nodes.add(root);
-		boardInverted = false;
+		bestMove = null;
 		firstMove = true;
+		gameBoard = new ArrayList<ArrayList<Square>>();
 	}
 	public ArrayList<LexiconNode> getNodes() {
 		return nodes;
@@ -55,11 +53,7 @@ public class ScrabbleBot {
 	public void setDictionary(ArrayList<String> dictionary) {
 		this.dictionary = dictionary;
 	}
-	
-	public ArrayList<ArrayList<String>> getGameState() {
-		return gameState;
-	}
-	
+		
 	public ArrayList<ArrayList<BoardSquareScore>> getStandardBoard() {
 		return standardBoard;
 	}
@@ -67,33 +61,6 @@ public class ScrabbleBot {
 		return letterPoints;
 	}
 	
-	public void setGameState(String state) {
-		ObjectMapper mapper = new ObjectMapper();
-		GameState gs = new GameState();
-		try {
-			gs = mapper.readValue(state, GameState.class);
-		} catch (JsonParseException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (JsonMappingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		this.gameState = gs.getGamestate();
-		this.colLimit = gameState.get(0).size() -1;
-		this.rowLimit = gameState.size() -1;
-		for (String tile : gs.getTiles()) {
-			if (Pattern.matches("\\w", tile.trim())) {
-				this.tiles.add(tile.trim().toUpperCase());
-			} else {
-				this.tiles.add("*");
-			}
-		}
-		this.fullTileRack.addAll(tiles);
-	}
 	public void setStandardBoard(String json) {
 		ObjectMapper mapper = new ObjectMapper();
 		StandardBoard board = new StandardBoard();
@@ -226,13 +193,40 @@ public class ScrabbleBot {
 	}
 	
 	// Populate board with anchors and cross checks
-	public void setGameBoard() {
-		for (int i=0; i < gameState.size(); i++) {
-			ArrayList<String> row = gameState.get(i);
+	public void setGameBoard(String state) {
+		ObjectMapper mapper = new ObjectMapper();
+		GameState gs = new GameState();
+		try {
+			gs = mapper.readValue(state, GameState.class);
+		} catch (JsonParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JsonMappingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		this.tiles.clear();
+		this.fullTileRack.clear();
+		this.colLimit = gs.getGamestate().get(0).size() -1;
+		this.rowLimit = gs.getGamestate().size() -1;
+		for (String tile : gs.getTiles()) {
+			if (Pattern.matches("\\w", tile.trim())) {
+				this.tiles.add(tile.trim().toUpperCase());
+			} else {
+				this.tiles.add("*");
+			}
+		}
+		this.fullTileRack.addAll(tiles);
+		this.gameBoard.clear();
+		for (int i=0; i < gs.getGamestate().size(); i++) {
+			ArrayList<String> row = gs.getGamestate().get(i);
 			ArrayList<Square> newRow = new ArrayList<Square>();
 			for (int j=0; j < row.size(); j++){		
 				BoardSquareScore info = standardBoard.get(i).get(j);
-				Square s = new Square(i,j, gameState.get(i).get(j), info.getLS(), info.getWS(), info.isStart());
+				Square s = new Square(i,j, gs.getGamestate().get(i).get(j), info.getLS(), info.getWS(), info.isStart());
 				newRow.add(s);
 				if (s.letter != ""){
 					firstMove = false;
@@ -274,6 +268,51 @@ public class ScrabbleBot {
 		}
 	}
 	
+	public void populateDictionary(String hash, String url){
+		//TODO check if hash in our db if so get the file from there else download it from url and store it
+		Response r = HTTPRequestHelper.makeHTTPRequest(url, null, "GET");
+		BufferedReader bufReader = new BufferedReader(new StringReader(r.getBody()));
+		String line=null;
+		ArrayList<String> temp = getDictionary();
+		try {
+			while( (line=bufReader.readLine()) != null )
+			{
+				temp.add(line);
+			}
+			setDictionary(temp);
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+	}
+	
+	public void populateGameAsset(String hash, String url, String assetName) throws Exception{
+		//TODO check if hash in our db if so get the file from there else download it from url and store it
+		Response r = HTTPRequestHelper.makeHTTPRequest(url, null, "GET");
+		BufferedReader bufReader = new BufferedReader(new StringReader(r.getBody()));
+		String line=null;
+		StringBuilder jsonValue = new StringBuilder();
+		String objectJSON = null;
+		try {
+			while( (line=bufReader.readLine()) != null )
+			{
+				jsonValue.append(line);
+			}
+			if (assetName.equals("gameboard")) {
+				objectJSON = "{ \"standardBoard\" : " + jsonValue.toString() + " }";
+				setStandardBoard(objectJSON);
+			} else if (assetName.equals("letters")) {
+				objectJSON = jsonValue.toString();
+				setLetterPoints(objectJSON);
+			} else {
+				throw new Exception("assetName is not a valid value of gameboard or letters");
+			}
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+	}
+	
 	public void populateLexicon(){
 		for (String word : dictionary) {
 			int currentNode = 0;
@@ -300,21 +339,12 @@ public class ScrabbleBot {
 	}
 	
 	public void scoreWord(String word, Square start){
-		StringBuilder positions = new StringBuilder();// TODO delete this
-		int pos = start.col;// TODO delete this
-//System.out.println("scoring : "+ word + " start {"+start.row + ","+start.col+"}");
 		Square s = start;
 		ArrayList<Integer> multipliers = new ArrayList<Integer>();
 		ArrayList<TilePlacement> tilePlacement = new ArrayList<TilePlacement>();
 		int acrossTotal = 0;
 		int grandTotal = 0;
 		for (char l : word.toCharArray()) { 
-			positions.append(String.valueOf(pos) + ","); // TODO delete this
-			pos++; // TODO delete this
-			
-			//System.out.println("Scoring letter: " + l + " letter point: "+ letterPoints.get(String.valueOf(l)) + " letterScore" + s.letterScore);
-			
-			//System.out.println("AcrossTotal:" + acrossTotal);
 			if (s.letter == "") {
 				String tile = (fullTileRack.contains(String.valueOf(l)) ? String.valueOf(l) : "*");
 				TilePlacement tp = new TilePlacement((boardInverted ? s.col : s.row),(boardInverted ? s.row : s.col), tile);
@@ -327,7 +357,6 @@ public class ScrabbleBot {
 					Square squareUp = gameBoard.get(i).get(s.col);
 					if (squareUp.letter != ""){
 						downTotal += letterPoints.get(squareUp.letter);
-						//System.out.println(" letter: " + squareUp.letter + ", " + letterPoints.get(squareUp.letter));
 					} else {
 						break;
 					}
@@ -337,7 +366,6 @@ public class ScrabbleBot {
 					Square squareDown = gameBoard.get(i).get(s.col);
 					if (squareDown.letter != ""){
 						downTotal += letterPoints.get(squareDown.letter);
-						//System.out.println(" letter: " + squareDown.letter + ", " + letterPoints.get(squareDown.letter));
 					} else {
 						break;
 					}
@@ -355,19 +383,11 @@ public class ScrabbleBot {
 		}
 
 	    for (int m : multipliers) {
-	    	//System.out.println("acrossTotal: "+ acrossTotal + " x multiplier: " + (m > 1 ? m : 0));
 	    	if (m > 1){
 	    		acrossTotal = acrossTotal * m;
 	    	}
 	    }
 	    grandTotal += acrossTotal;	
-	    positions.deleteCharAt(positions.lastIndexOf(","));
-	    String newLine = System.getProperty("line.separator");
-		System.out.print(word + " row:" + String.valueOf(start.row) + " positions {"+ positions+"}" + " score:" +String.valueOf(grandTotal));
-		for (TilePlacement t : tilePlacement) {
-			System.out.print(" placement: "+ t.getTile() +" {" + t.getRow() + ","+ t.getCol()+"}");
-		}
-		System.out.print(newLine);
 		if (bestMove == null){
 			bestMove = new Move("PLAY", tilePlacement, word, grandTotal);
 		} else if (bestMove.getScore() < grandTotal || (bestMove.getScore() == grandTotal && word.length() < bestMove.getWord().length())){
@@ -378,9 +398,6 @@ public class ScrabbleBot {
 	}
 	
 	public void extendLeft(String partialWord, LexiconNode node, int limit, Square origin, Square anchor){
-//		System.out.println("------------------------------------------------------");
-//		System.out.println("GOING RIGHT(" +partialWord + ", "+node.letter+", "+String.valueOf(origin.col)+" "+anchor.col);
-//		System.out.println("------------------------------------------------------");
 		extendRight(partialWord, node, anchor, origin, anchor);
 		if (limit > 0 && (origin.col -1) >= 0){
 			Square s = gameBoard.get(origin.row).get(origin.col -1);
@@ -403,10 +420,8 @@ public class ScrabbleBot {
 		if (square.letter == "") {
 			for (int e : node.edges){				
 				LexiconNode nextNode = nodes.get(e);
-				//System.out.println(nextNode.letter + " square "+ square.row + ","+ square.col);
 				if ((tiles.contains(nextNode.letter) || tiles.contains("*")) && 
-						(square.crossChecks.contains(nextNode.letter) || square.crossChecks.contains("*")) ){
-					//System.out.println((partialWord + nextNode.letter).length() + " " + (anchor.col - origin.col)+ " isTerminal " + (nextNode.terminal? "Y" : ""));
+						(!square.anchor || square.crossChecks.contains(nextNode.letter) || square.crossChecks.contains("*")) ){
 					if (nextNode.terminal && 
 							gameBoard.get(square.row).get(Math.min(colLimit, square.col + 1)).letter == ""){
 						scoreWord(partialWord + nextNode.letter, origin);
@@ -457,26 +472,28 @@ public class ScrabbleBot {
 							limit++;
 						}
 					}
-					//if ((s.row==3&&s.col==2)||(s.row==3&&s.col==7)){
-						LexiconNode startNode = nodes.get(0);
-						if (builder.toString().length() > 0) {
-							for (char l : builder.reverse().toString().toCharArray()){
-								for (int e : startNode.edges){
-									if (nodes.get(e).letter.equals(String.valueOf(l))){
-										startNode = nodes.get(e);
-									}
+
+					LexiconNode startNode = nodes.get(0);
+					if (builder.toString().length() > 0) {
+						for (char l : builder.reverse().toString().toCharArray()){
+							for (int e : startNode.edges){
+								if (nodes.get(e).letter.equals(String.valueOf(l))){
+									startNode = nodes.get(e);
 								}
 							}
 						}
-						extendLeft(builder.toString(), startNode, limit, origin, s);
-					//}
+					}
+					extendLeft(builder.toString(), startNode, limit, origin, s);
+
 					
 				}
 			}
 		}
 	}
 	
-	public Move makeBestMove() {
+	public Move makeBestMove(String gameState) {
+		setGameBoard(gameState);
+		bestMove = null;
 		if (firstMove){
 			for (int i=0; i <= colLimit; i++) {
 				for (int j=0; j <= rowLimit; j++) {
@@ -488,12 +505,9 @@ public class ScrabbleBot {
 				}
 			}
 		} else {
-			System.out.println("---------------");
-			System.out.println("PLAY ACROSS WORDS");
-			System.out.println("---------------");
-			
+			boardInverted = false;
 			traverseBoard();
-	
+
 			// invert board and recalculate cross checks
 			ArrayList<ArrayList<Square>> invertedBoard = new ArrayList<ArrayList<Square>>();	
 			for (int i=0; i <= colLimit; i++) {
@@ -518,33 +532,18 @@ public class ScrabbleBot {
 				}
 			}
 			boardInverted = true;
-			
-			System.out.println("---------------");
-			System.out.println("PLAY DOWN WORDS");
-			System.out.println("---------------");
-			for (int i =0; i < gameBoard.size(); i++){
-				for (int j=0;j <gameBoard.get(i).size(); j++){
-					Square s = gameBoard.get(i).get(j);
-					System.out.print((s.letter != "") ? s.letter : " ");
-					System.out.print((s.anchor ? "*" : " ") + "," );
-				}
-				System.out.println(" ");
-			}
-			for (int i=0; i < gameBoard.size(); i++) {
-				for (int j=0; j < gameBoard.get(i).size(); j++) {
-					Square s = gameBoard.get(i).get(j);
-					if (s.anchor){
-						System.out.println("Anchor tile: {" + String.valueOf(s.row) + "," + String.valueOf(s.col) + "} crosschecks: " + s.crossChecks);
-					}
-				}
-			}
 			traverseBoard();
 		}
+
 		if (bestMove != null){
 			System.out.println(bestMove.getWord() + " scores: " + bestMove.getScore());
+			for (TilePlacement t : bestMove.getPlaytiles()) {
+				System.out.println(" placement: "+ t.getTile() +" {" + t.getRow() + ","+ t.getCol()+"}");
+			}
 			return bestMove;
 		} else {
 			//TODO : swap tiles or pass decide here please
+			bestMove.setType("PASS");
 			return bestMove;
 		}
 	}
