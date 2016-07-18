@@ -94,6 +94,7 @@ public class BotManager {
 		JSONObject body = new JSONObject();
 		JSONObject variables = new JSONObject();
 		JSONObject gameStateJSON = new JSONObject();
+		int gameId = Integer.valueOf(params.get("gameid").toString());
 		gameStateJSON.put("gamestate", params.get("gamestate"));
 		gameStateJSON.put("tiles", params.get("tiles"));
 					
@@ -105,13 +106,15 @@ public class BotManager {
 		body.put("variables", variables.toString());
 		Response r = HTTPRequestHelper.makeHTTPRequest(persistenceLayerUrl, body.toString(), "POST");
 		
-	    Move m = scrabbleBots.get(Integer.valueOf(params.get("gameid").toString())).makeBestMove(gameStateJSON.toJSONString());
-		ObjectMapper mapper = new ObjectMapper();
-		String resultJSON = mapper.writeValueAsString(m); 
 		
-		Map<String, Object> respMap = new HashMap<String, Object>();
-		respMap.put("result", resultJSON);
-		JSONRPC2Response resp = new JSONRPC2Response(respMap, req.getID());
+		if (!scrabbleBots.containsKey(gameId)){
+			// TODO Bot server may have gone off line, try to get the game from the db and create a new bot
+			System.out.println("bot missing");
+		}
+		
+	    Move result = scrabbleBots.get(gameId).makeBestMove(gameStateJSON.toJSONString());
+		
+		JSONRPC2Response resp = new JSONRPC2Response(result, req.getID());
 
 		return resp;
 	}
