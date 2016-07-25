@@ -1,10 +1,9 @@
 package com.github.purnet.scrabblegamebot;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.servlet.ServletException;
@@ -13,6 +12,10 @@ import net.minidev.json.JSONObject;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.purnet.scrabblegamebot.jsonmapping.Asset;
+import com.github.purnet.scrabblegamebot.jsonmapping.CreateGameResponseWrapper;
+import com.github.purnet.webhelperlib.HTTPRequestHelper;
+import com.github.purnet.webhelperlib.Response;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 
@@ -22,6 +25,27 @@ public class BotManager {
 	
 	public BotManager(){
 		scrabbleBots = new HashMap<Integer, ScrabbleBot>();
+	}
+	
+	public void addNewBot(int gameId, List<Asset> assets) {
+		ScrabbleBot bot = new ScrabbleBot();
+		for (Asset a : assets) {
+			switch (a.getAssetName()) {
+				case "dictionary":  
+					bot.populateDictionary(a.getAssetContent());
+		            break;
+		        case "letters":  
+		        	bot.setLetterPoints(a.getAssetContent());
+		            break;
+		        case "gameboard":
+		        	bot.setStandardBoard(a.getAssetContent());
+		        	break;
+		        default: 
+	                break;
+			}
+		}
+		bot.populateLexicon();
+		scrabbleBots.put(gameId, bot);
 	}
 	
 	public JSONRPC2Response createGame(JSONRPC2Request req) throws ServletException {
@@ -37,50 +61,40 @@ public class BotManager {
 		variables.put("status", "PREPARING");
 		variables.put("players", params.get("players"));
 		
-		ScrabbleBot bot = new ScrabbleBot();
 		Map<String, Object> asset = (Map<String, Object>) params.get("gameboard");
 		gameboard.put("code", asset.get("sha1"));
 		gameboard.put("name", "gameboard");
 		gameboard.put("url", asset.get("url"));
 		assets.add(gameboard);
-		try {
-			bot.populateGameAsset("", asset.get("url").toString(), "gameboard");
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			throw new ServletException("Error in initialising servlet");
-		}
-		
+
 		asset = (Map<String, Object>) params.get("dictionary");
 		dictionary.put("code", asset.get("sha1"));
 		dictionary.put("name", "dictionary");
 		dictionary.put("url", asset.get("url"));
 		assets.add(dictionary);
-		bot.populateDictionary("",asset.get("url").toString());
 		
 		asset = (Map<String, Object>) params.get("letters");
 		letters.put("code", asset.get("sha1"));
 		letters.put("name", "letters");
 		letters.put("url", asset.get("url"));
 		assets.add(letters);
-		try {
-			bot.populateGameAsset("", asset.get("url").toString(), "letters");
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			throw new ServletException("Error in initialising servlet");
-		}
-		
-		bot.populateLexicon();
-		scrabbleBots.put(Integer.valueOf(params.get("gameid").toString()), bot);
-		
+			
 		variables.put("assets", assets);
 		
-		body.put("query", "mutation insertGame ($merkneraGameId: Int!, $status: String, $players: [PlayerInput], $assets: [AssetInput]) {game: createGame(merkneraGameId: $merkneraGameId, status: $status, playerInput: $players, assetInput: $assets) { merkneraGameId,  status,  players {playerName, playerNumber }, assets {assetUrl, assetCode, assetName}} }");
+		body.put("query", "mutation insertGame ($merkneraGameId: Int!, $status: String, $players: [PlayerInput], $assets: [AssetInput]) {createGame: createGame(merkneraGameId: $merkneraGameId, status: $status, playerInput: $players, assetInput: $assets) { assets { assetName, assetContent}} }");
 		body.put("variables", variables.toString());
 		
 		Response r = HTTPRequestHelper.makeHTTPRequest(persistenceLayerUrl, body.toString(), "POST");
-	
+		ObjectMapper mapper = new ObjectMapper();
+		CreateGameResponseWrapper gameResp = null;
+		try {
+			gameResp = mapper.readValue(r.getBody(), CreateGameResponseWrapper.class);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		addNewBot(Integer.valueOf(params.get("gameid").toString()), gameResp.getData().getcreateGame().getAssets());
+		
 		Map<String, Object> respMap = new HashMap<String, Object>(); 
 		//TODO check if assets are downloaded and if not respond with preparing
 		//     kick off an async task to download them and send a ready status once done
@@ -105,11 +119,23 @@ public class BotManager {
 		body.put("query", "mutation insertMove ($merkneraGameId: Int!, $state: String!, $tiles: String!){ game: createMove(merkneraGameId : $merkneraGameId, gameState : $state, tiles: $tiles\n  ) {id, gameState, tiles  }}");
 		body.put("variables", variables.toString());
 		Response r = HTTPRequestHelper.makeHTTPRequest(persistenceLayerUrl, body.toString(), "POST");
-		
-		
+			
 		if (!scrabbleBots.containsKey(gameId)){
-			// TODO Bot server may have gone off line, try to get the game from the db and create a new bot
-			System.out.println("bot missing");
+			body = new JSONObject();
+			variables = new JSONObject();
+			variables.put("id", Integer.valueOf(params.get("gameid").toString()));
+			body.put("query", "query getGame($id: Int!){ createGame: game(id: $id){ assets { assetName, assetContent}} }");
+			body.put("variables", variables.toString());
+			r = HTTPRequestHelper.makeHTTPRequest(persistenceLayerUrl, body.toString(), "POST");
+			ObjectMapper mapper = new ObjectMapper();
+			CreateGameResponseWrapper gameResp = null;
+			try {
+				gameResp = mapper.readValue(r.getBody(), CreateGameResponseWrapper.class);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			addNewBot(Integer.valueOf(params.get("gameid").toString()), gameResp.getData().getcreateGame().getAssets());
 		}
 		
 	    Move result = scrabbleBots.get(gameId).makeBestMove(gameStateJSON.toJSONString());

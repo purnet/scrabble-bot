@@ -39,6 +39,11 @@
 	    <artifactId>nimbus-jose-jwt</artifactId>
 	    <version>4.9</version>
 	</dependency>
+	<dependency>
+		<groupId>com.github.purnet</groupId>
+		<artifactId>webhelperlib</artifactId>
+		<version>0.0.1-SNAPSHOT</version>
+	</dependency>
   </dependencies>
   <build>
     <finalName>ScrabbleGameBot</finalName>

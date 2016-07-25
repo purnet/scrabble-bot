@@ -13,6 +13,8 @@ import java.util.regex.Pattern;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.purnet.webhelperlib.HTTPRequestHelper;
+import com.github.purnet.webhelperlib.Response;
 
 
 public class ScrabbleBot {
@@ -62,11 +64,12 @@ public class ScrabbleBot {
 	}
 	
 	public void setStandardBoard(String json) {
+		String objectJSON = "{ \"standardBoard\" : " + json + " }";
 		ObjectMapper mapper = new ObjectMapper();
 		StandardBoard board = new StandardBoard();
 		//ArrayList<ArrayList<BoardSquare>>
 		try {
-			board = mapper.readValue(json, StandardBoard.class);
+			board = mapper.readValue(objectJSON, StandardBoard.class);
 		} catch (JsonParseException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -268,10 +271,8 @@ public class ScrabbleBot {
 		}
 	}
 	
-	public void populateDictionary(String hash, String url){
-		//TODO check if hash in our db if so get the file from there else download it from url and store it
-		Response r = HTTPRequestHelper.makeHTTPRequest(url, null, "GET");
-		BufferedReader bufReader = new BufferedReader(new StringReader(r.getBody()));
+	public void populateDictionary(String body){
+		BufferedReader bufReader = new BufferedReader(new StringReader(body));
 		String line=null;
 		ArrayList<String> temp = getDictionary();
 		try {
@@ -285,34 +286,7 @@ public class ScrabbleBot {
 			e1.printStackTrace();
 		}
 	}
-	
-	public void populateGameAsset(String hash, String url, String assetName) throws Exception{
-		//TODO check if hash in our db if so get the file from there else download it from url and store it
-		Response r = HTTPRequestHelper.makeHTTPRequest(url, null, "GET");
-		BufferedReader bufReader = new BufferedReader(new StringReader(r.getBody()));
-		String line=null;
-		StringBuilder jsonValue = new StringBuilder();
-		String objectJSON = null;
-		try {
-			while( (line=bufReader.readLine()) != null )
-			{
-				jsonValue.append(line);
-			}
-			if (assetName.equals("gameboard")) {
-				objectJSON = "{ \"standardBoard\" : " + jsonValue.toString() + " }";
-				setStandardBoard(objectJSON);
-			} else if (assetName.equals("letters")) {
-				objectJSON = jsonValue.toString();
-				setLetterPoints(objectJSON);
-			} else {
-				throw new Exception("assetName is not a valid value of gameboard or letters");
-			}
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-	}
-	
+		
 	public void populateLexicon(){
 		for (String word : dictionary) {
 			int currentNode = 0;
