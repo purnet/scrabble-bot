@@ -59,6 +59,7 @@ public class BotManager {
 		JSONObject letters = new JSONObject();
 		variables.put("merkneraGameId", params.get("gameid"));
 		variables.put("status", "PREPARING");
+		variables.put("gameType", "Scrabble");
 		variables.put("players", params.get("players"));
 		
 		Map<String, Object> asset = (Map<String, Object>) params.get("gameboard");
@@ -79,9 +80,9 @@ public class BotManager {
 		letters.put("url", asset.get("url"));
 		assets.add(letters);
 			
-		variables.put("assets", assets);
+		variables.put("assets", assets);	
 		
-		body.put("query", "mutation insertGame ($merkneraGameId: Int!, $status: String, $players: [PlayerInput], $assets: [AssetInput]) {createGame: createGame(merkneraGameId: $merkneraGameId, status: $status, playerInput: $players, assetInput: $assets) { assets { assetName, assetContent}} }");
+		body.put("query", "mutation insertGame ($merkneraGameId: Int!, $status: String, $gameType: String!, $players: [PlayerInput], $assets: [AssetInput]) {createGame: createGame(merkneraGameId: $merkneraGameId, status: $status, gameType: $gameType, playerInput: $players, assetInput: $assets) { assets { assetName, assetContent}} }");
 		body.put("variables", variables.toString());
 		
 		Response r = HTTPRequestHelper.makeHTTPRequest(persistenceLayerUrl, body.toString(), "POST");
@@ -93,6 +94,7 @@ public class BotManager {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+
 		addNewBot(Integer.valueOf(params.get("gameid").toString()), gameResp.getData().getcreateGame().getAssets());
 		
 		Map<String, Object> respMap = new HashMap<String, Object>(); 
